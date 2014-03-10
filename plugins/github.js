@@ -242,6 +242,11 @@ GitHub.prototype.checkFiles = function(pull) {
 GitHub.prototype.processPull = function(pull) {
 	var self = this;
 	this.mergeatron.db.findPull(pull.number, pull.repo, function(error, item) {
+		if (!pull.head || !pull.head.repo) {
+			self.mergeatron.log.error('Skipping pull request, invalid payload given', { pull_number: pull.number, repo: pull.repo });
+			return;
+		}
+
 		var new_pull = false,
 			ssh_url = pull.head.repo.ssh_url,
 			branch = pull.head.label.split(':')[1];
