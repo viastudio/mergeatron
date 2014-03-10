@@ -80,7 +80,7 @@ GitHub.prototype.setupServer = function() {
 			var allowed = false;
 			for (var i in allowed_ranges) {
 				if (range_check.in_range(request.connection.remoteAddress, allowed_ranges[i])) {
-					allowed = true
+					allowed = true;
 				}
 			}
 
@@ -286,14 +286,14 @@ GitHub.prototype.processPull = function(pull) {
 		}, function(error, resp) {
 			for (var i in resp) {
 				if (i == 'meta') {
-					continue
+					continue;
 				}
 
 				var comment = resp[i];
 				if (
-					self.config.retry_whitelist
-					&& self.config.retry_whitelist.indexOf(comment.user.login) == -1
-					&& comment.user.login != pull.head.user.login
+					self.config.retry_whitelist &&
+					self.config.retry_whitelist.indexOf(comment.user.login) == -1 &&
+					comment.user.login != pull.head.user.login
 				) {
 					continue;
 				}
@@ -328,7 +328,7 @@ GitHub.prototype.createStatus = function(sha, user, repo, state, build_url, desc
 		state: state,
 		target_url: build_url,
 		description: description
-	}, function(error, resp) {
+	}, function(error) {
         if (error) {
           self.mergeatron.log.error(error);
           self.mergeatron.log.error(args);
@@ -379,7 +379,7 @@ GitHub.prototype.handlePullRequest = function(pull) {
 	// Check if this came through a webhooks setup
 	if (pull.action !== undefined) {
 		if (pull.action == 'closed') {
-			if (pull.pull_request.merged == true) {
+			if (pull.pull_request.merged) {
 				this.mergeatron.emit('pull.merged', pull);
 			} else {
 				this.mergeatron.emit('pull.closed', pull);
