@@ -80,7 +80,7 @@ GitHub.prototype.setupServer = function() {
 			var allowed = false;
 			for (var i in allowed_ranges) {
 				if (range_check.in_range(request.connection.remoteAddress, allowed_ranges[i])) {
-					allowed = true
+					allowed = true;
 				}
 			}
 
@@ -242,6 +242,11 @@ GitHub.prototype.checkFiles = function(pull) {
 GitHub.prototype.processPull = function(pull) {
 	var self = this;
 	this.mergeatron.db.findPull(pull.number, pull.repo, function(error, item) {
+		if (!pull.head || !pull.head.repo) {
+			self.mergeatron.log.error('Skipping pull request, invalid payload given', { pull_number: pull.number, repo: pull.repo });
+			return;
+		}
+
 		var new_pull = false,
 			ssh_url = pull.head.repo.ssh_url,
 			branch = pull.head.label.split(':')[1];
@@ -286,19 +291,19 @@ GitHub.prototype.processPull = function(pull) {
 		}, function(error, resp) {
 			for (var i in resp) {
 				if (i == 'meta') {
-					continue
+					continue;
 				}
 
 				var comment = resp[i];
 				if (
-					self.config.retry_whitelist
-					&& self.config.retry_whitelist.indexOf(comment.user.login) == -1
-					&& comment.user.login != pull.head.user.login
+					self.config.retry_whitelist &&
+					self.config.retry_whitelist.indexOf(comment.user.login) == -1 &&
+					comment.user.login != pull.head.user.login
 				) {
 					continue;
 				}
 
-				if (comment.created_at > item.updated_at && comment.body.indexOf('@' + self.config.auth.user + ' retest') != -1) {
+				if (comment.created_at > item.updated_at && comment.body.indexOf('@' + self.config.auth.username + ' retest') != -1) {
 					self.mergeatron.emit('pull.processed', pull, pull.number, pull.head.sha, ssh_url, branch, pull.updated_at);
 					return;
 				}
@@ -328,7 +333,7 @@ GitHub.prototype.createStatus = function(sha, user, repo, state, build_url, desc
 		state: state,
 		target_url: build_url,
 		description: description
-	}, function(error, resp) {
+	}, function(error) {
         if (error) {
           self.mergeatron.log.error(error);
           self.mergeatron.log.error(args);
@@ -379,7 +384,7 @@ GitHub.prototype.handlePullRequest = function(pull) {
 	// Check if this came through a webhooks setup
 	if (pull.action !== undefined) {
 		if (pull.action == 'closed') {
-			if (pull.pull_request.merged == true) {
+			if (pull.pull_request.merged) {
 				this.mergeatron.emit('pull.merged', pull);
 			} else {
 				this.mergeatron.emit('pull.closed', pull);
