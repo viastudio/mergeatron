@@ -437,7 +437,7 @@ GitHub.prototype.handleIssueComment = function(comment) {
 		return;
 	}
 
-	if (comment.comment.body.indexOf('@' + this.config.auth.user + ' retest') != -1) {
+	if (comment.comment.body.indexOf('@' + this.config.auth.username + ' retest') != -1) {
 		this.mergeatron.log.debug('Received retest request for pull', { pull_number: comment.issue.number, repo: comment.repository.name });
 
 		var self = this;
