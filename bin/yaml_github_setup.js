@@ -16,6 +16,7 @@ Must have the format:\
 program.version('iunno')
        .description(help)
        .option('-o, --output <path>', 'File to output to.')
+       .option('-j, --jobs <string>', 'Template for jobs. Defaults to the repo name, will replace the string ":name:" with the name of the repo.')
        .option('-f, --force', 'If --output exists, force overwrite (program just exits by default).')
        .parse(process.argv);
 
@@ -34,9 +35,10 @@ program.args.forEach(function(file) {
       process.exit(1);
     }
     var obj = {
-      name: repo.name,
-      url: repo.url,
-      token: 'REPLACE_ME'
+      repo: repo.name,
+      name: program.jobs ? program.jobs.replace(':name:', repo.name) : repo.name,
+      token: 'REPLACE_ME',
+      rules: false
     };
     repos.push(obj);
   });
