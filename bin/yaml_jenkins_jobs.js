@@ -25,7 +25,10 @@ if (!program.output) {
   process.exit(1);
 }
 
-var repos = [];
+var config = {
+  projects: [],
+  repos: []
+}
 
 program.args.forEach(function(file) {
   var data = yaml.safeLoad(fs.readFileSync(file, 'utf8'));
@@ -40,11 +43,12 @@ program.args.forEach(function(file) {
       token: 'REPLACE_ME',
       rules: false
     };
-    repos.push(obj);
+    config.projects.push(obj);
+    config.repos.push(repo.name);
   });
   fs.exists(program.output, function(fileExists) {
     if (program.force || !fileExists) {
-      fs.writeFile(program.output, JSON.stringify(repos), function(err) {
+      fs.writeFile(program.output, JSON.stringify(config), function(err) {
         console.log( (err === null ? 'Wrote ' : err + '\n\nFailed writing ') + 'to ' + program.output );
         process.exit(!!err);
       });
