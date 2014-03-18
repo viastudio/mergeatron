@@ -138,6 +138,7 @@ Jenkins.prototype.pullFound = function(pull) {
 	var project = this.findProjectByRepo(pull.repo);
 
 	if (!project) {
+		this.mergeatron.log.error('No jenkins job found for PR', { pull: pull.number, repository: pull.base.repo.fullname || pull.base.repo.name } );
 		return;
 	}
 

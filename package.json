@@ -28,7 +28,9 @@
 		"async": ">=0.1.22",
 		"winston": ">=0.6.2",
 		"xml2js": ">=0.2.2",
-		"range_check": "*"
+		"range_check": "*",
+		"commander": ">=2.1",
+		"js-yaml": "3.0.2"
 	},
 
 	"devDependencies": {
