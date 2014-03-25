@@ -98,12 +98,13 @@ Jenkins.prototype.setup = function() {
 Jenkins.prototype.buildPull = function(pull, number, sha, ssh_url, branch, updated_at) {
 	var project = this.findProjectByRepo(pull.repo),
 		job_id = uuid.v1(),
-		self = this;
+		self = this,
+		trigger_token = project.token || self.config.token;
 
 	this.mergeatron.log.info('Starting build for pull', { pull_number: pull.number, project: project.name });
 
 	this.triggerBuild(project.name, {
-		token: project.token,
+		token: trigger_token,
 		cause: 'Testing Pull Request: ' + number,
 		REPOSITORY_URL: ssh_url,
 		BRANCH_NAME: branch,
@@ -163,6 +164,101 @@ Jenkins.prototype.pullFound = function(pull) {
 	}
 
 	this.mergeatron.log.debug('Invalidating pull with rules', { pull: pull.number, project: project.name });
+};
+
+/**
+ * Validate that a push can be used to trigger a build, given the config
+ * @method validatePush
+ * @param push {Object}
+ */
+Jenkins.prototype.validatePush = function(push) {
+    var repo = push.repository.name,
+        log_info = { repo: repo, reference: push.ref, head: push.after };
+
+    if (!this.config.push_projects) {
+        this.mergeatron.log.debug('No push_projects config for jenkins plugin', log_info );
+        return false;
+    }
+
+    if (!(repo in this.config.push_projects)) {
+        this.mergeatron.log.debug('repo not configured for push events', log_info );
+        return false;
+    }
+
+    if (!this.config.push_projects[repo].project) {
+        this.mergeatron.log.error('No jenkins project given for repo', log_info);
+        return false;
+    }
+
+    return true;
+};
+
+/**
+ * Called when a push event is given, looks at the ref and sees if it matches any rules. If it does, triggers
+ * a given project.
+ *
+ * @method pushFound
+ * @param push {Object}
+ */
+Jenkins.prototype.pushFound = function(push) {
+    if (!this.validatePush(push)) {
+        return;
+    }
+
+    var self = this,
+        repo = push.repository.name,
+        project_config = self.config.push_projects[repo],
+        log_info = { repo: repo, reference: push.ref, head: push.after },
+        branch = push.ref.split('/').pop();
+
+    if (!branch) {
+        self.mergeatron.log.error('Bad ref name', { ref: push.ref, parsed: branch });
+        return;
+    }
+
+    if (!project_config.rules || !(project_config.rules instanceof Array)) {
+        self.mergeatron.log.info('no ref regex rules for push', log_info);
+        self.buildPush(push, branch);
+        return;
+    }
+
+    project_config.rules.some(function(regex) {
+        if (!branch.match(regex)) {
+            self.mergeatron.log.debug(branch + ' did not match ' + regex);
+            return false;
+        }
+
+        log_info.jenkins_trigger = { project: project_config.project, branch: branch };
+        self.mergeatron.log.info('regex rule matched for push', log_info);
+        self.buildPush(push, branch);
+
+        return true;
+    });
+};
+
+/**
+ * Build a given push command. Assumes that validatePush was run on push & runs a given project.
+ *
+ * @method buildPush
+ * @param push {Object}
+ * @param branch {String}
+ */
+Jenkins.prototype.buildPush = function(push, branch) {
+    var self = this,
+        repo = push.repository.name,
+        url_opts = {
+            token: self.config.push_projects[repo].token || self.config.token,
+            cause: push.ref + ' updated to ' + push.after,
+            BRANCH_NAME: branch,
+            BEFORE: push.before,
+            AFTER: push.after,
+        };
+
+    self.triggerBuild(self.config.push_projects[repo].project, url_opts, function(error) {
+        if (error) {
+             self.mergeatron.log.error(error);
+        }
+    });
 };
 
 /**
@@ -249,6 +345,8 @@ Jenkins.prototype.triggerBuild = function(job_name, url_options, callback) {
 			authorization: 'Basic ' + (new Buffer(this.config.user + ":" + this.config.pass, 'ascii').toString('base64'))
 		};
 	}
+
+	this.mergeatron.log.debug('jenkins build trigger', options);
 
 	request(options, callback);
 };
@@ -362,6 +460,10 @@ Jenkins.prototype.downloadArtifact = function(build, pull, artifact) {
 exports.init = function(config, mergeatron) {
 	var jenkins = new Jenkins(config, mergeatron);
 	jenkins.setup();
+
+	mergeatron.on('push.found', function(push) {
+		jenkins.pushFound(push);
+	});
 
 	mergeatron.on('pull.processed', function(pull, pull_number, sha, ssh_url, branch, updated_at) {
 		jenkins.buildPull(pull, pull_number, sha, ssh_url, branch, updated_at);

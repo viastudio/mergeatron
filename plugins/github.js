@@ -15,7 +15,7 @@ var http = require('http'),
 // page of any repo you have admin access to to see the list of GitHub public IPs.
 var allowed_ips = [ '127.0.0.1' ],
 	allowed_ranges = [ '207.97.227.253/32', '50.57.128.197/32', '108.171.174.178/32', '50.57.231.61/32', '204.232.175.64/27', '192.30.252.0/22' ],
-	allowed_events = [ 'pull_request', 'issue_comment' ];
+	allowed_events = [ 'pull_request', 'issue_comment', 'push' ];
 
 /**
  * @class GitHub
@@ -453,6 +453,44 @@ GitHub.prototype.handleIssueComment = function(comment) {
 	}
 };
 
+/**
+ * Processes & validates push events
+ *
+ * @method handlePush
+ * @param payload {Object}
+ */
+GitHub.prototype.handlePush = function(payload) {
+    var self = this;
+
+    if (!payload.repository.name || !payload.ref || !payload.before || !payload.after || !payload.pusher.name || !payload.pusher.email) {
+        self.mergeatron.log.error('Invalid push payload event', payload);
+        return;
+    }
+
+    self.mergeatron.db.findPush(payload.repository.name, payload.ref, payload.after, function(err, item) {
+        var log_item = { repo: payload.repository.name, ref: payload.ref, sha: payload.after };
+
+        if (err) {
+            self.mergeatron.log.error(err);
+            return;
+        }
+
+        if (item) {
+            self.mergeatron.log.debug('Push event already triggered.', log_item);
+            return;
+        }
+
+        self.mergeatron.log.debug('Push event found', log_item);
+        self.mergeatron.db.insertPush(payload, function(err, res) {
+            if (err) {
+                self.mergeatron.log.error(err);
+                return;
+            }
+            self.mergeatron.emit('push.found', payload);
+        });
+    });
+};
+
 exports.init = function(config, mergeatron) {
 	var github = new GitHub(config, mergeatron, events);
 	github.setup();
@@ -487,5 +525,9 @@ exports.init = function(config, mergeatron) {
 
 	events.on('issue_comment', function(data) {
 		github.handleIssueComment(data);
+	});
+
+	events.on('push', function(data) {
+	    github.handlePush(data);
 	});
 };
