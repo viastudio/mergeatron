@@ -8,6 +8,19 @@ exports.init = function() {
 		this.connection = require('mongojs').connect(config.auth, config.collections);
 	};
 
+	// push methods
+	MongoDB.prototype.findPush = function(repo, ref, head, callback) {
+		this.connection.pushes.findOne({ repo: repo, ref: ref, sha: head }, callback);
+	};
+
+	MongoDB.prototype.insertPush = function(push, callback) {
+		this.connection.pushes.insert({
+		    repo: push.repository.name,
+		    ref: push.ref,
+		    sha: push.after
+		}, callback);
+	};
+
 	// pull methods
 	MongoDB.prototype.findPull = function(pull_number, pull_repo, callback) {
 		this.connection.pulls.findOne({ number: pull_number, repo: pull_repo }, callback);
