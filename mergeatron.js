@@ -39,20 +39,27 @@ config.plugin_dirs.forEach(function(dir) {
 
 		for (var i = 0, l = files.length; i < l; i++) {
 			var filename = dir + files[i],
-				pluginName = files[i].split('.', 2)[0],
-				conf = { enabled: true };
+				pluginName = files[i].split('.', 2)[0];
 
 			if (!filename.match(/\.js$/)) {
 				continue;
 			}
 
-			if (config.plugins && config.plugins[pluginName]) {
-				conf = config.plugins[pluginName];
+			if (!config.plugins) {
+			    mergeatron.log.info('No plugin configurations found');
+			    process.exit(0);
 			}
 
-			if (conf.enabled === undefined || conf.enabled) {
+			if (!config.plugins[pluginName]) {
+			    mergeatron.log.info('No configuration for ' + pluginName + ', not loading');
+			    continue;
+			}
+
+			var pluginEnabled = config.plugins[pluginName].enabled;
+
+			if (pluginEnabled == undefined || pluginEnabled) {
 				mergeatron.log.info('Loading plugin: ' + pluginName);
-				require(filename).init(conf, mergeatron);
+				require(filename).init(config.plugins[pluginName], mergeatron);
 			} else {
 				mergeatron.log.info('Not loading disabled plugin ' + pluginName);
 			}
