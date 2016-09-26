@@ -14,7 +14,7 @@ var http = require('http'),
 // We only want to accept local requests and GitHub requests. See the Service Hooks
 // page of any repo you have admin access to to see the list of GitHub public IPs.
 var allowed_ips = [ '127.0.0.1' ],
-	allowed_ranges = [ '207.97.227.253/32', '50.57.128.197/32', '108.171.174.178/32', '50.57.231.61/32', '204.232.175.64/27', '192.30.252.0/22' ],
+	allowed_ranges = [ '207.97.227.253/32', '50.57.128.197/32', '108.171.174.178/32', '50.57.231.61/32', '204.232.175.64/27', '::ffff:192.30.252.0/22' ],
 	allowed_events = [ 'pull_request', 'issue_comment', 'push' ];
 
 /**
